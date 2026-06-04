@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateLocalReport } from '@/lib/claude/analyze';
-
 // 간단한 키워드 기반 로컬 챗봇 (API 에러 대비)
 function generateLocalReply(message: string): string {
     const text = message.toLowerCase();
