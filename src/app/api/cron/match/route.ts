@@ -25,7 +25,21 @@ export async function GET(request: Request) {
         
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // 1. 최신 리포트를 가진(최근 7일 내) 유저들 조회
+        // 1. 현재 매칭 중인(busy) 유저 목록 가져오기
+        const { data: activeMatches } = await supabase
+            .from('matches')
+            .select('user_a_id, user_b_id')
+            .in('status', ['pending', 'matched', 'gatekeeper']);
+
+        const busyUserIds = new Set<string>();
+        if (activeMatches) {
+            activeMatches.forEach(m => {
+                busyUserIds.add(m.user_a_id);
+                busyUserIds.add(m.user_b_id);
+            });
+        }
+
+        // 2. 최신 리포트를 가진(최근 7일 내) 유저들 조회
         const limitDate = new Date();
         limitDate.setDate(limitDate.getDate() - 7);
         
@@ -47,48 +61,47 @@ export async function GET(request: Request) {
             }
         });
 
-        const activeUserIds = Array.from(userLatestReportMap.keys());
+        // 3. 바쁘지 않은(매칭 대기 중인) 유저 ID 추출
+        const eligibleUserIds = Array.from(userLatestReportMap.keys()).filter(id => !busyUserIds.has(id));
 
-        // 2. 유저 프로필 정보 한번에 가져오기
+        if (eligibleUserIds.length < 2) {
+            return NextResponse.json({ success: true, message: '현재 매칭 가능한 유휴 유저가 부족합니다.' });
+        }
+
+        // 4. 유휴 유저 프로필 정보 한번에 가져오기
         const { data: users } = await supabase
             .from('users')
             .select('id, nickname, birth_year, gender, region')
-            .in('id', activeUserIds);
+            .in('id', eligibleUserIds);
 
         if (!users || users.length < 2) {
-            return NextResponse.json({ success: true, message: '필터링 가능한 유저가 부족합니다.' });
+            return NextResponse.json({ success: true, message: '필터링 가능한 유저 프로필이 부족합니다.' });
         }
 
-        // 3. 임시 매칭 로직 (테스트용: 첫 번째 유저를 기준으로 삼음)
-        // 실제 운영 시에는 '현재 매칭 중(pending)이 아닌 유저들' 큐를 만들어서 순회해야 함.
+        // 5. 프로덕션 매칭 로직 (청크 처리 및 딜레이)
         let matchCount = 0;
         
-        // 간단한 시뮬레이션: 가장 활발한(가입 순) 유저 3명 정도만 타겟으로 매칭 시도
-        const targetUsers = users.slice(0, 3);
+        // Edge/Node 런타임 제약(60초)을 피하기 위해 한 번에 최대 5명만 타겟으로 매칭 시도
+        const MAX_TARGETS = 5;
+        const targetUsers = users.slice(0, MAX_TARGETS);
 
         for (const targetUser of targetUsers) {
-            // 이미 매칭된 상태인지 확인 (pending 이나 matched)
-            const { data: existingMatches } = await supabase
-                .from('matches')
-                .select('id')
-                .or(`user_a_id.eq.${targetUser.id},user_b_id.eq.${targetUser.id}`)
-                .in('status', ['pending', 'matched', 'gatekeeper'])
-                .limit(1);
-
-            if (existingMatches && existingMatches.length > 0) {
-                continue; // 이미 진행 중인 매칭이 있으면 패스
-            }
+            if (busyUserIds.has(targetUser.id)) continue;
 
             // 후보군 점수화 필터링 (유연한 매칭)
             const scoredCandidates = users
-                .filter(u => u.id !== targetUser.id && (u.gender !== targetUser.gender || u.gender === 'other')) // 본인 제외 및 이성 위주
+                .filter(u => 
+                    u.id !== targetUser.id && 
+                    !busyUserIds.has(u.id) && 
+                    (u.gender !== targetUser.gender || u.gender === 'other') // 본인 제외, 바쁘지 않은 사람, 이성 위주
+                )
                 .map(u => ({
                     ...u,
-                    match_score: u.region === targetUser.region ? 100 : 50 // 같은 지역 우선, 아니어도 후보군 유지
+                    match_score: u.region === targetUser.region ? 100 : 50 // 같은 지역 우선
                 }))
                 .sort((a, b) => b.match_score - a.match_score); // 점수 높은 순 정렬
                 
-            const candidates = scoredCandidates.slice(0, 10); // 최대 10명 추출
+            const candidates = scoredCandidates.slice(0, 10); // 1명당 최대 10명 추출
 
             if (candidates.length === 0) continue;
 
@@ -100,25 +113,39 @@ export async function GET(request: Request) {
                 report: userLatestReportMap.get(c.id) || '',
             }));
 
-            // 4. Claude 매칭 API 호출
-            const bestMatch = await findBestMatch({
-                id: targetUser.id,
-                nickname: targetUser.nickname || '익명',
-                birth_year: targetUser.birth_year || 2000,
-                report: userLatestReportMap.get(targetUser.id) || '',
-            }, matchCandidates);
+            try {
+                // API Rate Limit 방어를 위한 짧은 지연시간 (1초)
+                if (matchCount > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
 
-            if (bestMatch && bestMatch.matchedUserId) {
-                // 5. DB에 매칭 내역 저장
-                await supabase.from('matches').insert({
-                    user_a_id: targetUser.id,
-                    user_b_id: bestMatch.matchedUserId,
-                    resonance_score: bestMatch.resonanceScore,
-                    match_reason: bestMatch.reason,
-                    status: 'pending',
-                });
-                console.log(`매칭 성공: ${targetUser.id} <-> ${bestMatch.matchedUserId} (공명지수: ${bestMatch.resonanceScore})`);
-                matchCount++;
+                // Claude 매칭 API 호출
+                const bestMatch = await findBestMatch({
+                    id: targetUser.id,
+                    nickname: targetUser.nickname || '익명',
+                    birth_year: targetUser.birth_year || 2000,
+                    report: userLatestReportMap.get(targetUser.id) || '',
+                }, matchCandidates);
+
+                if (bestMatch && bestMatch.matchedUserId) {
+                    // DB에 매칭 내역 저장
+                    await supabase.from('matches').insert({
+                        user_a_id: targetUser.id,
+                        user_b_id: bestMatch.matchedUserId,
+                        resonance_score: bestMatch.resonanceScore,
+                        match_reason: bestMatch.reason,
+                        status: 'pending',
+                    });
+                    console.log(`매칭 성공: ${targetUser.id} <-> ${bestMatch.matchedUserId} (공명지수: ${bestMatch.resonanceScore})`);
+                    
+                    // 매칭된 두 사람은 바쁜 상태로 업데이트
+                    busyUserIds.add(targetUser.id);
+                    busyUserIds.add(bestMatch.matchedUserId);
+                    matchCount++;
+                }
+            } catch (matchError) {
+                console.error(`매칭 생성 중 오류 발생 (Target: ${targetUser.id}):`, matchError);
+                // 오류가 발생해도 다른 타겟 유저 매칭은 계속 진행
             }
         }
 
@@ -128,7 +155,7 @@ export async function GET(request: Request) {
         });
 
     } catch (error: any) {
-        console.error('크론 매칭 에러:', error);
+        console.error('크론 매칭 전체 에러:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

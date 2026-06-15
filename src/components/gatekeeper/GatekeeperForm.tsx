@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const QUESTIONS = [
     {
@@ -78,24 +79,36 @@ export default function GatekeeperForm({ matchId }: { matchId: string }) {
 
             <div className="mb-6 flex justify-center space-x-2">
                 {QUESTIONS.map((_, i) => (
-                    <div
+                    <motion.div
                         key={i}
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                            i <= currentStep ? 'w-8 bg-[var(--color-primary)]' : 'w-4 bg-[var(--color-border)]'
-                        }`}
+                        layout
+                        initial={false}
+                        animate={{ width: i <= currentStep ? 32 : 16, backgroundColor: i <= currentStep ? 'var(--color-primary)' : 'var(--color-border)' }}
+                        className="h-2 rounded-full"
                     />
                 ))}
             </div>
 
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-sm animate-slide-up" key={currentStep}>
-                <h2 className="text-lg font-bold text-[var(--color-text)] text-center mb-8">
-                    {question.title}
-                </h2>
+            <div className="relative min-h-[300px]">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={currentStep}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-sm absolute w-full"
+                    >
+                        <h2 className="text-lg font-bold text-[var(--color-text)] text-center mb-8">
+                            {question.title}
+                        </h2>
 
                 <div className="space-y-4">
-                    <button
+                    <motion.button
+                        whileHover={{ scale: answers[currentStep] === 'A' ? 1 : 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => handleSelect('A')}
-                        className={`w-full p-4 rounded-xl text-left border-2 transition-all ${
+                        className={`w-full p-4 rounded-xl text-left border-2 transition-colors ${
                             answers[currentStep] === 'A'
                                 ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]'
                                 : 'border-transparent bg-[var(--color-background)] hover:bg-[var(--color-primary-subtle)] hover:border-[var(--color-primary-light)]'
@@ -104,10 +117,12 @@ export default function GatekeeperForm({ matchId }: { matchId: string }) {
                         <span className="text-[var(--color-text)] font-medium block">
                             A. {question.optionA}
                         </span>
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: answers[currentStep] === 'B' ? 1 : 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => handleSelect('B')}
-                        className={`w-full p-4 rounded-xl text-left border-2 transition-all ${
+                        className={`w-full p-4 rounded-xl text-left border-2 transition-colors ${
                             answers[currentStep] === 'B'
                                 ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]'
                                 : 'border-transparent bg-[var(--color-background)] hover:bg-[var(--color-primary-subtle)] hover:border-[var(--color-primary-light)]'
@@ -116,8 +131,10 @@ export default function GatekeeperForm({ matchId }: { matchId: string }) {
                         <span className="text-[var(--color-text)] font-medium block">
                             B. {question.optionB}
                         </span>
-                    </button>
+                    </motion.button>
                 </div>
+            </motion.div>
+            </AnimatePresence>
             </div>
 
             {error && (
@@ -125,13 +142,22 @@ export default function GatekeeperForm({ matchId }: { matchId: string }) {
             )}
 
             {currentStep === QUESTIONS.length - 1 && answers.length === QUESTIONS.length && (
-                <button
+                <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="mt-8 w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white font-bold shadow-lg shadow-[var(--color-primary-subtle)] hover:opacity-90 transition-opacity disabled:opacity-50 animate-fade-in"
+                    className="mt-8 relative z-10 w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white font-bold shadow-lg shadow-[var(--color-primary-subtle)] disabled:opacity-50"
                 >
-                    {isSubmitting ? '전달 중...' : '마음 전달하기'}
-                </button>
+                    {isSubmitting ? (
+                        <div className="flex items-center justify-center space-x-2">
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                            <span>전달 중...</span>
+                        </div>
+                    ) : '마음 전달하기'}
+                </motion.button>
             )}
         </div>
     );

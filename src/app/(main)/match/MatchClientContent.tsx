@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 export default function MatchClientContent({ matches, currentUser }: { matches: any[], currentUser: any }) {
     const router = useRouter();
@@ -30,14 +31,19 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
     return (
         <div className="min-h-screen bg-[var(--color-background)] px-6 py-8 pb-32">
             <div className="max-w-lg mx-auto">
-                <div className="mb-10 animate-fade-in">
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="mb-10"
+                >
                     <h1 className="text-2xl font-bold text-[var(--color-text)]">
                         새로운 공명 ✨
                     </h1>
                     <p className="text-sm text-[var(--color-text-secondary)] mt-2">
                         AI가 당신의 기록을 엮어 찾아낸 특별한 인연입니다.
                     </p>
-                </div>
+                </motion.div>
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">
@@ -46,7 +52,12 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
                 )}
 
                 {!matches || matches.length === 0 ? (
-                    <div className="p-8 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center animate-slide-up">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className="p-8 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] text-center"
+                    >
                         <span className="text-4xl mb-4 block">🔮</span>
                         <p className="text-[var(--color-text)] font-semibold mb-2">아직 공명 중입니다</p>
                         <p className="text-sm text-[var(--color-text-secondary)] mb-6">
@@ -54,14 +65,16 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
                         </p>
                         
                         {/* 시뮬레이션 버튼 */}
-                        <button
+                        <motion.button
+                            whileHover={{ scale: simulating ? 1 : 1.02 }}
+                            whileTap={{ scale: simulating ? 1 : 0.98 }}
                             onClick={handleSimulate}
                             disabled={simulating}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white font-semibold text-sm shadow-md hover:shadow-lg transition-shadow disabled:opacity-50"
                         >
                             {simulating ? '시뮬레이션 중...' : '매칭 시뮬레이션 해보기'}
-                        </button>
-                    </div>
+                        </motion.button>
+                    </motion.div>
                 ) : (
                     <div className="space-y-6">
                         {matches.map((match: any, i: number) => {
@@ -74,7 +87,13 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
                             );
 
                             return (
-                                <div key={match.id} className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-primary-light)] shadow-[var(--shadow-glow)] animate-slide-up" style={{ animationDelay: `${i * 0.1}s` }}>
+                                <motion.div 
+                                    key={match.id} 
+                                    initial={{ opacity: 0, y: 30 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: i * 0.1 }}
+                                    className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-primary-light)] shadow-[var(--shadow-glow)]"
+                                >
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <span className="inline-block px-3 py-1 rounded-full bg-[var(--color-primary-subtle)] text-[var(--color-primary)] text-xs font-bold mb-3">
@@ -94,11 +113,14 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
                                     </div>
 
                                     {match.status === 'matched' ? (
-                                        <Link
-                                            href={`/chat/${match.id}`}
-                                            className="block w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white text-center font-bold shadow-md hover:shadow-lg transition-all"
-                                        >
-                                            💬 새로운 인연과 대화하기
+                                        <Link href={`/chat/${match.id}`} passHref legacyBehavior>
+                                            <motion.a
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                className="block w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white text-center font-bold shadow-md hover:shadow-lg transition-shadow"
+                                            >
+                                                💬 새로운 인연과 대화하기
+                                            </motion.a>
                                         </Link>
                                     ) : match.status === 'missed' ? (
                                         <div className="py-4 rounded-xl border border-[var(--color-border)] text-center text-[var(--color-text-secondary)] font-semibold bg-[var(--color-surface)] opacity-70">
@@ -109,16 +131,19 @@ export default function MatchClientContent({ matches, currentUser }: { matches: 
                                             상대방의 응답을 기다리는 중...
                                         </div>
                                     ) : (
-                                        <Link
-                                            href={`/match/${match.id}/gatekeeper`}
-                                            className="block w-full py-4 rounded-xl bg-[var(--color-text)] text-[var(--color-background)] text-center font-semibold shadow-md hover:opacity-90 transition-opacity"
-                                        >
-                                            {match.status === 'gatekeeper' 
-                                                ? '상대방이 관문을 열었어요! 당신의 답은?' 
-                                                : '마음의 관문 열기 (수락)'}
+                                        <Link href={`/match/${match.id}/gatekeeper`} passHref legacyBehavior>
+                                            <motion.a
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                className="block w-full py-4 rounded-xl bg-[var(--color-text)] text-[var(--color-background)] text-center font-semibold shadow-md hover:shadow-lg transition-shadow"
+                                            >
+                                                {match.status === 'gatekeeper' 
+                                                    ? '상대방이 관문을 열었어요! 당신의 답은?' 
+                                                    : '마음의 관문 열기 (수락)'}
+                                            </motion.a>
                                         </Link>
                                     )}
-                                </div>
+                                </motion.div>
                             );
                         })}
                     </div>

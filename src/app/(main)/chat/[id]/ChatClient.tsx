@@ -23,6 +23,7 @@ export default function ChatClient({
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
+    const [isPartnerTyping, setIsPartnerTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // 스크롤 맨 아래로 이동
@@ -48,9 +49,13 @@ export default function ChatClient({
                 },
                 (payload) => {
                     const newMsg = payload.new as Message;
+                    // 상대방 메시지가 오면 타이핑 상태 해제
+                    if (newMsg.sender_id === partnerId) {
+                        setIsPartnerTyping(false);
+                    }
                     // 내가 보낸 메시지는 로컬 상태에 먼저 추가하므로 중복 방지
                     setMessages((prev) => {
-                        if (prev.find(m => m.id === newMsg.id)) return prev;
+                        if (prev.find(m => m.id === newMsg.id || (m.content === newMsg.content && m.sender_id === newMsg.sender_id && m.id.startsWith('temp-')))) return prev;
                         return [...prev, newMsg];
                     });
                 }
@@ -68,7 +73,24 @@ export default function ChatClient({
 
         const text = newMessage.trim();
         setNewMessage('');
+        
+        // 낙관적 UI 업데이트 (임시 ID 부여)
+        const tempId = `temp-${Date.now()}`;
+        setMessages(prev => [...prev, {
+            id: tempId,
+            match_id: matchId,
+            sender_id: currentUserId,
+            content: text,
+            created_at: new Date().toISOString()
+        }]);
+
         setSending(true);
+
+        // 시뮬레이션 봇인 경우 타이핑 인디케이터 표시
+        const isBot = partnerNickname === '겨울밤바다' || partnerNickname.startsWith('dummy_');
+        if (isBot) {
+            setIsPartnerTyping(true);
+        }
 
         try {
             // API를 통해 메시지 전송 (시뮬레이션 봇 연동을 위함)
@@ -78,12 +100,14 @@ export default function ChatClient({
                 body: JSON.stringify({ matchId, content: text, partnerId })
             });
             
-            // 만약 API 실패 시, 로컬 에러 처리 가능
+            // 만약 API 실패 시, 로컬 에러 처리 및 임시 메시지 삭제 필요 (생략)
             if (!res.ok) {
                 console.error('메시지 전송 실패');
+                setIsPartnerTyping(false);
             }
         } catch (error) {
             console.error('Send error:', error);
+            setIsPartnerTyping(false);
         } finally {
             setSending(false);
         }
@@ -145,6 +169,23 @@ export default function ChatClient({
                                 </div>
                             );
                         })}
+                        
+                        {/* 타이핑 인디케이터 */}
+                        {isPartnerTyping && (
+                            <div className="flex justify-start animate-fade-in">
+                                <div className="w-8 shrink-0 mr-2 flex items-end">
+                                    <div className="w-8 h-8 rounded-full bg-[var(--color-primary-subtle)] flex items-center justify-center text-xs">
+                                        👤
+                                    </div>
+                                </div>
+                                <div className="px-4 py-3.5 rounded-2xl rounded-bl-sm bg-white border border-[var(--color-border)] flex items-center space-x-1 shadow-sm">
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-secondary)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-secondary)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <div className="w-1.5 h-1.5 bg-[var(--color-text-secondary)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
+                            </div>
+                        )}
+                        
                         <div ref={messagesEndRef} />
                     </div>
                 )}
