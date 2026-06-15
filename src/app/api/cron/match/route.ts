@@ -149,13 +149,46 @@ export async function GET(request: Request) {
             }
         }
 
+        const resultMessage = `${matchCount} 쌍의 매칭이 성공적으로 생성되었습니다.`;
+        
+        // 슬랙 웹훅 전송
+        const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+        if (slackWebhookUrl) {
+            try {
+                await fetch(slackWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: `*✅ [RESONANCE] 매칭 스케줄러 완료!*\n${resultMessage}`
+                    })
+                });
+            } catch (slackError) {
+                console.error('슬랙 웹훅 전송 실패:', slackError);
+            }
+        }
+
         return NextResponse.json({ 
             success: true, 
-            message: `${matchCount} 쌍의 매칭이 성공적으로 생성되었습니다.` 
+            message: resultMessage 
         });
 
     } catch (error: any) {
         console.error('크론 매칭 전체 에러:', error);
+
+        // 슬랙 웹훅 에러 전송
+        const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+        if (slackWebhookUrl) {
+            try {
+                await fetch(slackWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: `*🚨 [RESONANCE] 매칭 스케줄러 실패!*\n\`\`\`${error.message}\`\`\``
+                    })
+                });
+            } catch (e) {}
+        }
+
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

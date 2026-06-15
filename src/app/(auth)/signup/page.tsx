@@ -10,12 +10,19 @@ export default function SignupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [agreed, setAgreed] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        // 필수 약관 동의 확인
+        if (!agreed) {
+            setError('이용약관 및 개인정보 수집에 동의해 주세요.');
+            return;
+        }
 
         // 비밀번호 확인
         if (password !== confirmPassword) {
@@ -142,6 +149,19 @@ export default function SignupPage() {
                         minLength={6}
                         className="w-full px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] placeholder:text-[var(--color-text-light)] transition-all duration-200"
                     />
+                </div>
+
+                <div className="flex items-start mt-4 mb-2">
+                    <input
+                        id="terms"
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={(e) => setAgreed(e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                    />
+                    <label htmlFor="terms" className="ml-2 text-sm text-[var(--color-text-secondary)]">
+                        (필수) <Link href="/terms" className="underline hover:text-[var(--color-primary)]" target="_blank">이용약관</Link> 및 <Link href="/privacy" className="underline hover:text-[var(--color-primary)]" target="_blank">개인정보 처리방침</Link>에 동의합니다.
+                    </label>
                 </div>
 
                 {/* 에러 메시지 */}

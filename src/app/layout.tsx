@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeProvider from "@/components/ui/ThemeProvider";
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   title: "RESONANCE — 내면이 공명하는 만남",
@@ -20,6 +21,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
