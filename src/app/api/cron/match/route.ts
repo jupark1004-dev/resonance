@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { findBestMatch, MatchCandidate } from '@/lib/claude/match';
+import { findBestMatch, MatchCandidate, MIN_RESONANCE_SCORE } from '@/lib/claude/match';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -147,8 +147,9 @@ async function runMatchBatch(request: Request, isManualAdmin = false) {
             });
         }
 
-        // 5. 1,000명 대응 배치 매칭 (1회 실행 시 최대 25쌍 = 50명 매칭)
+        // 5. 1,000명 대응 배치 매칭 (1회 실행 시 최대 25쌍 = 50명 매칭, 최소 공명 지수 75점 이상만 성사)
         let matchCount = 0;
+        let skippedLowResonanceCount = 0;
         const MAX_TARGETS = 25;
         const targetUsers = users.slice(0, MAX_TARGETS);
 
@@ -187,7 +188,7 @@ async function runMatchBatch(request: Request, isManualAdmin = false) {
                     await new Promise((resolve) => setTimeout(resolve, 400));
                 }
 
-                let bestMatch = await findBestMatch(
+                const bestMatch = await findBestMatch(
                     {
                         id: targetUser.id,
                         nickname: targetUser.nickname || '익명',
@@ -197,14 +198,14 @@ async function runMatchBatch(request: Request, isManualAdmin = false) {
                     matchCandidates
                 );
 
-                // AI 응답 실패 시 권역·나이 점수가 가장 높은 1순위 후보로 안전 폴백
-                if (!bestMatch || !bestMatch.matchedUserId) {
-                    const topCandidate = candidates[0];
-                    bestMatch = {
-                        matchedUserId: topCandidate.id,
-                        resonanceScore: Math.min(96, 78 + Math.floor(Math.random() * 15)),
-                        reason: '두 분의 일기 속에 흐르는 다정한 시선과 일상의 온도가 깊이 닮아 있어, 편안하고 따뜻한 대화가 이어질 수 있는 인연입니다.',
-                    };
+                // 최소 공명 커트라인(75점) 미달 시 억지 매칭하지 않고 보류
+                if (
+                    !bestMatch ||
+                    !bestMatch.matchedUserId ||
+                    bestMatch.resonanceScore < MIN_RESONANCE_SCORE
+                ) {
+                    skippedLowResonanceCount++;
+                    continue;
                 }
 
                 const { error: insertErr } = await supabase.from('matches').insert({
@@ -227,7 +228,10 @@ async function runMatchBatch(request: Request, isManualAdmin = false) {
             }
         }
 
-        const resultMessage = `${matchCount}쌍(${matchCount * 2}명)의 새로운 공명 매칭이 생성되었습니다.`;
+        const resultMessage =
+            skippedLowResonanceCount > 0
+                ? `${matchCount}쌍(${matchCount * 2}명)의 진정한 공명 매칭이 성사되었습니다. (공명 기준 ${MIN_RESONANCE_SCORE}점 미달로 억지 매칭 보류: ${skippedLowResonanceCount}명)`
+                : `${matchCount}쌍(${matchCount * 2}명)의 새로운 공명 매칭이 성사되었습니다.`;
 
         const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
         if (slackWebhookUrl) {
