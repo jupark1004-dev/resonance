@@ -7,12 +7,16 @@ interface HomeContentProps {
     nickname: string;
     todayQuestion: DailyQuestion | null;
     hasRespondedToday: boolean;
+    isFirstReportJourney?: boolean;
+    firstJourneyCount?: number;
 }
 
 export default function HomeContent({
     nickname,
     todayQuestion,
     hasRespondedToday,
+    isFirstReportJourney = false,
+    firstJourneyCount = 0,
 }: HomeContentProps) {
     // 시간대별 인사말
     const getGreeting = () => {
@@ -38,7 +42,7 @@ export default function HomeContent({
         <div className="min-h-screen bg-[var(--color-background)] px-6 py-8">
             <div className="max-w-lg mx-auto">
                 {/* 인사 헤더 */}
-                <div className="mb-10 animate-fade-in">
+                <div className="mb-8 animate-fade-in">
                     <p className="text-sm text-[var(--color-text-secondary)] mb-1">
                         {getGreeting()}
                     </p>
@@ -47,17 +51,68 @@ export default function HomeContent({
                     </h1>
                 </div>
 
+                {/* 첫 내면 리포트 3문항 웰컴 여정 배너 (부여된 진행 효과) */}
+                {isFirstReportJourney && (
+                    <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-[var(--color-primary-subtle)] to-[var(--color-surface)] border border-[var(--color-primary)]/20 shadow-sm animate-fade-in">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-[var(--color-primary)]">
+                                🔮 첫 내면 리포트 & 매칭 오픈 여정
+                            </span>
+                            <span className="text-xs font-bold text-[var(--color-primary)]">
+                                {firstJourneyCount} / 3 완료
+                            </span>
+                        </div>
+
+                        <div className="flex gap-2 mb-3">
+                            {[1, 2, 3].map((step) => (
+                                <div
+                                    key={step}
+                                    className={`h-2 flex-1 rounded-full transition-all duration-500 ${
+                                        step <= firstJourneyCount
+                                            ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)]'
+                                            : 'bg-[var(--color-border)]'
+                                    }`}
+                                />
+                            ))}
+                        </div>
+
+                        {firstJourneyCount >= 3 ? (
+                            <div className="flex items-center justify-between gap-3 pt-1">
+                                <p className="text-xs text-[var(--color-text)] font-medium">
+                                    첫 3개의 기록이 모였어요! 지금 AI 내면 분석을 받아보세요.
+                                </p>
+                                <Link
+                                    href="/report"
+                                    className="shrink-0 px-3.5 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-semibold shadow-sm hover:opacity-90 transition-opacity"
+                                >
+                                    리포트 열기 →
+                                </Link>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                                {firstJourneyCount === 0
+                                    ? '환영해요! 첫 리포트는 기다릴 필요 없이 오늘 바로 3개의 질문에 연속으로 답하고 즉시 받아볼 수 있어요.'
+                                    : `잘하고 계세요! ${3 - firstJourneyCount}개의 질문에만 더 답하면 당신의 첫 AI 내면 리포트와 공명 매칭이 열립니다.`}
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 {/* 오늘의 질문 카드 */}
                 {todayQuestion && (
                     <div className="animate-slide-up mb-6">
                         <div className="p-6 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm">
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className="text-lg">
-                                    {getCategoryEmoji(todayQuestion.category)}
-                                </span>
-                                <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
-                                    오늘의 질문
-                                </span>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-lg">
+                                        {getCategoryEmoji(todayQuestion.category)}
+                                    </span>
+                                    <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wider">
+                                        {isFirstReportJourney && firstJourneyCount < 3
+                                            ? `첫 내면 탐색 질문 (${firstJourneyCount + 1}/3)`
+                                            : '오늘의 질문'}
+                                    </span>
+                                </div>
                             </div>
 
                             <p className="text-lg font-medium text-[var(--color-text)] leading-relaxed mb-6">
@@ -76,7 +131,9 @@ export default function HomeContent({
                                     href={`/question?id=${todayQuestion.id}`}
                                     className="block w-full py-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-light)] text-white text-center font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
                                 >
-                                    답변하기
+                                    {isFirstReportJourney && firstJourneyCount > 0 && firstJourneyCount < 3
+                                        ? `${firstJourneyCount + 1}번째 질문 이어서 답변하기`
+                                        : '답변하기'}
                                 </Link>
                             )}
                         </div>

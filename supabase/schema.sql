@@ -16,10 +16,11 @@ create table public.users (
 -- users 테이블 RLS 활성화
 alter table public.users enable row level security;
 
--- 자신의 프로필만 조회 가능
-create policy "Users can view own profile"
+-- 인증된 사용자는 매칭 및 채팅 프로필 표시를 위해 기본 프로필 조회 가능
+create policy "Authenticated users can view profiles"
   on public.users for select
-  using (auth.uid() = id);
+  to authenticated
+  using (true);
 
 -- 자신의 프로필만 수정 가능
 create policy "Users can update own profile"
@@ -140,10 +141,21 @@ create table public.gatekeeper_questions (
 -- gatekeeper_questions RLS 활성화
 alter table public.gatekeeper_questions enable row level security;
 
--- 누구나 활성화된 질문 조회 가능
-create policy "Anyone can view active gatekeeper questions"
+-- 누구나 질문 조회 가능
+create policy "Anyone can view gatekeeper questions"
   on public.gatekeeper_questions for select
-  using (is_active = true);
+  using (true);
+
+-- 인증된 사용자(어드민)가 관문 질문 추가 및 활성 상태 변경 가능
+create policy "Authenticated users can insert gatekeeper questions"
+  on public.gatekeeper_questions for insert
+  to authenticated
+  with check (true);
+
+create policy "Authenticated users can update gatekeeper questions"
+  on public.gatekeeper_questions for update
+  to authenticated
+  using (true);
 
 
 -- 6. gatekeeper_answers 테이블 — 관문 답변 (Phase 2에서 활용)
@@ -239,13 +251,16 @@ insert into public.daily_questions (question_text, category) values
 -- 7.5 초기 시드 데이터 — 관문 질문 샘플 (트렌드 반영 가능)
 -- ============================================
 insert into public.gatekeeper_questions (option_a, option_b) values
-  ('산 ⛰️', '바다 🌊'),
-  ('콜라 🥤', '사이다 🧊'),
-  ('여름 ☀️', '겨울 ❄️'),
-  ('전화 📞', '문자 💬'),
+  ('연락은 칼답이 기본 ⚡', '서로 여유 있을 때 답장 ☕'),
+  ('웨이팅 1시간 핫플 맛집 🍲', '바로 들어가는 조용한 식당 🌿'),
+  ('갈등은 그날 바로 대화로 🔥', '생각 정리 후 차분히 대화 🌙'),
+  ('주말엔 밖에서 데이트 🚗', '주말엔 집에서 힐링 충전 🏠'),
+  ('분위기 좋은 와인바 🍷', '정겨운 포장마차 우동 🍢'),
+  ('분 단위 완벽 계획 여행 📝', '발길 닿는 대로 즉흥 여행 ✈️'),
+  ('고민 상담은 따뜻한 공감 🫂', '고민 상담은 현실적 해결책 💡'),
   ('짜장면 🍝', '짬뽕 🍜'),
-  ('영화관람 🎬', '넷플릭스 📺'), -- 예시 추가
-  ('계획적인 J 📝', '즉흥적인 P 🚀'); -- 예시 추가
+  ('산 ⛰️', '바다 🌊'),
+  ('전화 📞', '문자 💬');
 
 
 -- ============================================
@@ -284,3 +299,23 @@ create policy "Authenticated users can upload images"
 create policy "Anyone can view response images"
   on storage.objects for select
   using (bucket_id = 'response-images');
+
+
+-- ============================================
+-- 10. 이용자 1,000명 규모 대응 성능 인덱스 (Indexes)
+-- ============================================
+create index if not exists idx_responses_user_responded
+  on public.responses (user_id, responded_at desc);
+
+create index if not exists idx_analysis_reports_user_created
+  on public.analysis_reports (user_id, created_at desc);
+
+create index if not exists idx_matches_user_a_status
+  on public.matches (user_a_id, status);
+
+create index if not exists idx_matches_user_b_status
+  on public.matches (user_b_id, status);
+
+create index if not exists idx_messages_match_created
+  on public.messages (match_id, created_at asc);
+

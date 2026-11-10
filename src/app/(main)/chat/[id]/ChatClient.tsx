@@ -24,7 +24,37 @@ export default function ChatClient({
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [reportReason, setReportReason] = useState('불쾌한 언행 또는 비매너 대화');
+    const [processingLeave, setProcessingLeave] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // 대화 종료(매칭 나가기) 또는 신고 후 차단 처리
+    const handleEndOrReportMatch = async (isReport: boolean) => {
+        setProcessingLeave(true);
+        try {
+            // 매칭 상태를 missed로 변경하여 두 사람을 현재 매칭에서 해제 (다음 매칭 풀로 복귀하되 이 상대와는 재매칭 안 됨)
+            const { error: updateErr } = await supabase
+                .from('matches')
+                .update({ status: 'missed' })
+                .eq('id', matchId);
+
+            if (updateErr) {
+                console.error('매칭 종료 실패:', updateErr);
+                return;
+            }
+
+            if (isReport) {
+                console.info(`신고 접수 (${matchId}): ${reportReason}`);
+            }
+
+            setMenuOpen(false);
+            router.push('/match');
+            router.refresh();
+        } finally {
+            setProcessingLeave(false);
+        }
+    };
 
     // 스크롤 맨 아래로 이동
     const scrollToBottom = () => {
@@ -129,7 +159,18 @@ export default function ChatClient({
                     <div className="flex-1 text-center font-bold text-[var(--color-text)]">
                         {partnerNickname}
                     </div>
-                    <div className="w-10 h-10" /> {/* 우측 여백 맞춤 */}
+                    <button
+                        type="button"
+                        onClick={() => setMenuOpen(true)}
+                        aria-label="대화방 메뉴"
+                        className="w-10 h-10 flex items-center justify-center -mr-2 rounded-full hover:bg-[var(--color-background)] transition-colors text-[var(--color-text-secondary)]"
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -213,6 +254,69 @@ export default function ChatClient({
                     </button>
                 </form>
             </div>
+
+            {/* 안전 메뉴 모달 (대화 종료 / 신고 및 차단) */}
+            {menuOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-5 animate-fade-in"
+                    onClick={() => setMenuOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-3xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base font-bold text-[var(--color-text)]">
+                                대화방 안전 설정
+                            </h3>
+                            <button
+                                type="button"
+                                onClick={() => setMenuOpen(false)}
+                                className="w-8 h-8 rounded-full bg-[var(--color-background)] text-[var(--color-text-secondary)] flex items-center justify-center"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed mb-5">
+                            대화를 종료하면 현재 채팅방이 닫히며, 다음 정기 매칭에서 새로운 인연을 다시 만날 수 있습니다. (현재 상대방과는 다시 매칭되지 않습니다.)
+                        </p>
+
+                        <button
+                            type="button"
+                            disabled={processingLeave}
+                            onClick={() => handleEndOrReportMatch(false)}
+                            className="w-full py-3.5 px-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text)] text-xs font-semibold hover:border-[var(--color-primary)] transition-colors mb-4"
+                        >
+                            👋 정중히 대화 종료하고 다음 인연 기다리기
+                        </button>
+
+                        <div className="pt-4 border-t border-[var(--color-border)]">
+                            <label className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-2">
+                                🚨 비매너 사용자 신고 및 즉시 차단
+                            </label>
+                            <select
+                                value={reportReason}
+                                onChange={(e) => setReportReason(e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] text-xs text-[var(--color-text)] mb-3"
+                            >
+                                <option value="불쾌한 언행 또는 비매너 대화">불쾌한 언행 또는 비매너 대화</option>
+                                <option value="스팸 / 홍보성 / 외부 연락처 강요">스팸 / 홍보성 / 외부 연락처 강요</option>
+                                <option value="장기간 무응답 (유령 회원)">장기간 무응답 (유령 회원)</option>
+                                <option value="기타 부적절한 행위">기타 부적절한 행위</option>
+                            </select>
+                            <button
+                                type="button"
+                                disabled={processingLeave}
+                                onClick={() => handleEndOrReportMatch(true)}
+                                className="w-full py-3 px-4 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                                신고 접수 및 즉시 차단하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

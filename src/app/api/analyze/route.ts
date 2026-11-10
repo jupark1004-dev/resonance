@@ -26,6 +26,8 @@ export async function POST() {
             .single();
 
         const nextWeekNumber = (latestReport?.week_number ?? 0) + 1;
+        // 첫 리포트(1주차)는 초기 이탈 방지를 위해 3개 응답으로 오픈, 2주차부터는 7개 응답 기준
+        const requiredCount = nextWeekNumber === 1 ? 3 : 7;
 
         // 이전 리포트 이후의 응답만 가져오기
         let query = supabase
@@ -43,20 +45,20 @@ export async function POST() {
 
         const { data: responses } = await query;
 
-        if (!responses || responses.length < 7) {
+        if (!responses || responses.length < requiredCount) {
             return NextResponse.json(
                 {
                     success: false,
-                    error: `분석을 위해 ${7 - (responses?.length ?? 0)}개의 응답이 더 필요합니다.`,
+                    error: `분석을 위해 ${requiredCount - (responses?.length ?? 0)}개의 응답이 더 필요합니다.`,
                     currentCount: responses?.length ?? 0,
-                    requiredCount: 7,
+                    requiredCount,
                 },
                 { status: 400 }
             );
         }
 
-        // 최근 7개 응답으로 분석 실행
-        const recentResponses = responses.slice(0, 7);
+        // 필요한 개수만큼 응답으로 분석 실행
+        const recentResponses = responses.slice(0, requiredCount);
 
         const analysisData = recentResponses.map((r) => ({
             question_text: r.question?.question_text ?? '',

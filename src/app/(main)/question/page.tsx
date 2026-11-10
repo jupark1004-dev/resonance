@@ -32,17 +32,33 @@ export default async function QuestionPage({ searchParams }: QuestionPageProps) 
         redirect('/home');
     }
 
-    // 오늘 이미 응답했는지 확인
+    // 오늘 이미 응답했는지 확인 (단, 첫 리포트 전 총 응답이 3개 미만이면 연속 답변 허용)
+    const { data: userResponses } = await supabase
+        .from('responses')
+        .select('id, question_id, responded_at')
+        .eq('user_id', user.id);
+
+    const { count: reportCount } = await supabase
+        .from('analysis_reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+    const totalResponseCount = userResponses?.length ?? 0;
+    const isFirstReportJourney = (reportCount ?? 0) === 0 && totalResponseCount < 3;
+
+    // 이미 같은 질문에 답한 경우 홈으로 이동
+    const alreadyAnsweredThisQuestion = (userResponses ?? []).some(
+        (r) => r.question_id === questionId
+    );
+    if (alreadyAnsweredThisQuestion && isFirstReportJourney) {
+        redirect('/home');
+    }
+
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-    const { data: existingResponse } = await supabase
-        .from('responses')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('responded_at', todayStart)
-        .limit(1);
+    const respondedToday = (userResponses ?? []).some((r) => r.responded_at >= todayStart);
 
-    if (existingResponse && existingResponse.length > 0) {
+    if (respondedToday && !isFirstReportJourney) {
         redirect('/home');
     }
 

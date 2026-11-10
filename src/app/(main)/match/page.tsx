@@ -23,7 +23,22 @@ export default async function MatchPage() {
         .in('status', ['pending', 'gatekeeper', 'matched'])
         .order('created_at', { ascending: false });
 
+    const { count: reportCount } = await supabase
+        .from('analysis_reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+    const { count: responseCount } = await supabase
+        .from('responses')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
     return (
-        <MatchClientContent matches={matches || []} currentUser={user} />
+        <MatchClientContent
+            matches={matches || []}
+            currentUser={user}
+            hasReport={(reportCount ?? 0) > 0}
+            responseCount={responseCount ?? 0}
+        />
     );
 }
