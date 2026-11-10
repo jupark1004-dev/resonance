@@ -267,8 +267,28 @@ export async function POST(request: Request) {
         data: { user },
     } = await supabase.auth.getUser();
 
-    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@resonance.com';
-    if (!user || user.email !== adminEmail) {
+    if (!user) {
+        return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const allowedEmails = [
+        process.env.NEXT_PUBLIC_ADMIN_EMAIL,
+        'admin@resonance.com',
+        'jupark1004@gmail.com',
+        'jupark1004@naver.com',
+    ].filter(Boolean);
+
+    const { data: myProfile } = await supabase
+        .from('users')
+        .select('nickname')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    const isAuthorized =
+        allowedEmails.includes(user.email) ||
+        myProfile?.nickname === '굽다만감자';
+
+    if (!isAuthorized) {
         return NextResponse.json({ success: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }
 

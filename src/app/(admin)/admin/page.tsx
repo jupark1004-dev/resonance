@@ -64,9 +64,25 @@ export default function AdminPage() {
                 return;
             }
 
-            const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@resonance.com';
-            if (user.email !== adminEmail) {
-                setError('관리자 권한이 없습니다.');
+            const allowedEmails = [
+                process.env.NEXT_PUBLIC_ADMIN_EMAIL,
+                'admin@resonance.com',
+                'jupark1004@gmail.com',
+                'jupark1004@naver.com',
+            ].filter(Boolean);
+
+            const { data: myProfile } = await supabase
+                .from('users')
+                .select('nickname')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            const isAuthorized =
+                allowedEmails.includes(user.email) ||
+                myProfile?.nickname === '굽다만감자';
+
+            if (!isAuthorized) {
+                setError(`현재 로그인된 계정(${user.email})에는 관리자 권한이 없습니다.`);
                 setLoading(false);
                 return;
             }
