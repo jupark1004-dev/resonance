@@ -1,11 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme, THEMES } from './ThemeProvider';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ThemeSelector() {
+    const router = useRouter();
     const { theme, setTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
+
+    const handleLogout = async () => {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        setIsOpen(false);
+        router.push('/login');
+        router.refresh();
+    };
 
     return (
         <div className="relative">
@@ -73,6 +84,16 @@ export default function ThemeSelector() {
                                 />
                             </button>
                         ))}
+
+                        <div className="my-1.5 border-t border-[var(--color-border)]" />
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="w-full px-4 py-2.5 flex items-center gap-3 text-left text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-error)] hover:bg-red-50/50 transition-colors"
+                        >
+                            <span>🚪</span>
+                            <span>로그아웃</span>
+                        </button>
                     </div>
                 </>
             )}

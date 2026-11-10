@@ -55,12 +55,21 @@ export default async function HomePage() {
 
     if (questions && questions.length > 0) {
         if (isFirstReportJourney && totalResponseCount < 3) {
-            // 첫 리포트(3개 응답) 전까지는 아직 답하지 않은 질문을 우선 배정하여 연속 답변 허용
+            // 첫 리포트(3개 응답) 전까지는 아직 답하지 않은 질문을 순서대로 배정하여 연속 답변 허용
             const unanswered = questions.find((q) => !answeredQuestionIds.has(q.id));
             todayQuestion = unanswered ?? questions[dayOfYear % questions.length];
         } else {
-            const questionIndex = dayOfYear % questions.length;
-            todayQuestion = questions[questionIndex] ?? null;
+            // 일상 루틴에서도 오늘의 날짜 인덱스를 시작점으로 삼되, 이미 답했던 질문이면 아직 답하지 않은 다음 질문으로 자동 이동
+            const startIndex = dayOfYear % questions.length;
+            let picked = null;
+            for (let offset = 0; offset < questions.length; offset++) {
+                const candidate = questions[(startIndex + offset) % questions.length];
+                if (!answeredQuestionIds.has(candidate.id)) {
+                    picked = candidate;
+                    break;
+                }
+            }
+            todayQuestion = picked ?? questions[startIndex] ?? null;
         }
     }
 

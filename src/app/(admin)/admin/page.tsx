@@ -64,31 +64,19 @@ export default function AdminPage() {
                 return;
             }
 
-            const allowedEmails = [
-                process.env.NEXT_PUBLIC_ADMIN_EMAIL,
-                'admin@resonance.com',
-                'jupark1004@gmail.com',
-                'jupark1004@naver.com',
-            ].filter(Boolean);
+            const res = await fetch('/api/questions');
+            const data = await res.json();
 
-            const { data: myProfile } = await supabase
-                .from('users')
-                .select('nickname')
-                .eq('id', user.id)
-                .maybeSingle();
-
-            const isAuthorized =
-                allowedEmails.includes(user.email) ||
-                myProfile?.nickname === '굽다만감자';
-
-            if (!isAuthorized) {
-                setError(`현재 로그인된 계정(${user.email})에는 관리자 권한이 없습니다.`);
+            if (!res.ok || !data.success) {
+                setError(data.error || '관리자 권한이 없습니다.');
                 setLoading(false);
                 return;
             }
 
             setIsAdmin(true);
-            await Promise.all([fetchQuestions(), fetchGatekeeperQuestions(), fetchUserStats()]);
+            setQuestions(data.questions || []);
+            setGatekeeperQuestions(data.gatekeeperQuestions || []);
+            setUserProfiles(data.userProfiles || []);
         } catch (e) {
             console.error(e);
             setError('인증 중 오류가 발생했습니다.');
@@ -97,13 +85,13 @@ export default function AdminPage() {
         }
     };
 
-    const fetchUserStats = async () => {
-        const supabase = createClient();
-        const { data } = await supabase
-            .from('users')
-            .select('id, gender, region');
-        if (data) {
-            setUserProfiles(data);
+    const reloadAdminData = async () => {
+        const res = await fetch('/api/questions');
+        const data = await res.json();
+        if (res.ok && data.success) {
+            setQuestions(data.questions || []);
+            setGatekeeperQuestions(data.gatekeeperQuestions || []);
+            setUserProfiles(data.userProfiles || []);
         }
     };
 
@@ -126,34 +114,6 @@ export default function AdminPage() {
         }
     };
 
-    const fetchQuestions = async () => {
-        const supabase = createClient();
-        const { data, error: fetchErr } = await supabase
-            .from('daily_questions')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (fetchErr) {
-            console.error(fetchErr);
-        } else {
-            setQuestions(data || []);
-        }
-    };
-
-    const fetchGatekeeperQuestions = async () => {
-        const supabase = createClient();
-        const { data, error: fetchErr } = await supabase
-            .from('gatekeeper_questions')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (fetchErr) {
-            console.error(fetchErr);
-        } else {
-            setGatekeeperQuestions(data || []);
-        }
-    };
-
     const handleAddQuestion = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newQuestion.trim()) return;
@@ -162,19 +122,47 @@ export default function AdminPage() {
         setError('');
         setSuccessMsg('');
         try {
-            const supabase = createClient();
-            const { error: insertError } = await supabase
-                .from('daily_questions')
-                .insert([{ question_text: newQuestion.trim(), category }]);
-
-            if (insertError) throw insertError;
+            const res = await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'add_daily',
+                    question_text: newQuestion.trim(),
+                    category,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || '등록 실패');
 
             setNewQuestion('');
-            setSuccessMsg('새 데일리 질문이 등록되었습니다.');
-            await fetchQuestions();
+            setSuccessMsg(data.message);
+            await reloadAdminData();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '알 수 없는 오류';
             setError('질문 등록에 실패했습니다: ' + msg);
+        } finally {
+            setAdding(false);
+        }
+    };
+
+    const handleSeedDaily30Questions = async () => {
+        setAdding(true);
+        setError('');
+        setSuccessMsg('');
+        try {
+            const res = await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'seed_daily_30' }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || '일괄 확충 실패');
+
+            setSuccessMsg(data.message);
+            await reloadAdminData();
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '알 수 없는 오류';
+            setError('심층 질문 30선 확충 실패: ' + msg);
         } finally {
             setAdding(false);
         }
@@ -188,23 +176,22 @@ export default function AdminPage() {
         setError('');
         setSuccessMsg('');
         try {
-            const supabase = createClient();
-            const { error: insertError } = await supabase
-                .from('gatekeeper_questions')
-                .insert([
-                    {
-                        option_a: optionA.trim(),
-                        option_b: optionB.trim(),
-                        is_active: true,
-                    },
-                ]);
-
-            if (insertError) throw insertError;
+            const res = await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'add_gatekeeper',
+                    option_a: optionA.trim(),
+                    option_b: optionB.trim(),
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || '등록 실패');
 
             setOptionA('');
             setOptionB('');
-            setSuccessMsg('새 관문 밸런스 질문이 등록되었습니다.');
-            await fetchGatekeeperQuestions();
+            setSuccessMsg(data.message);
+            await reloadAdminData();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '알 수 없는 오류';
             setError('관문 질문 등록에 실패했습니다: ' + msg);
@@ -217,14 +204,18 @@ export default function AdminPage() {
         setError('');
         setSuccessMsg('');
         try {
-            const supabase = createClient();
-            const { error: updateErr } = await supabase
-                .from('gatekeeper_questions')
-                .update({ is_active: !item.is_active })
-                .eq('id', item.id);
-
-            if (updateErr) throw updateErr;
-            await fetchGatekeeperQuestions();
+            const res = await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'toggle_gatekeeper',
+                    id: item.id,
+                    is_active: !item.is_active,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || '상태 변경 실패');
+            await reloadAdminData();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '알 수 없는 오류';
             setError('상태 변경에 실패했습니다: ' + msg);
@@ -236,26 +227,16 @@ export default function AdminPage() {
         setError('');
         setSuccessMsg('');
         try {
-            const supabase = createClient();
-            const existingSet = new Set(
-                gatekeeperQuestions.map((q) => `${q.option_a}|${q.option_b}`)
-            );
-            const toInsert = TREND_PRESET_QUESTIONS.filter(
-                (p) => !existingSet.has(`${p.option_a}|${p.option_b}`)
-            ).map((p) => ({ ...p, is_active: true }));
+            const res = await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'seed_gatekeeper_trend' }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || '트렌드 질문 추가 실패');
 
-            if (toInsert.length === 0) {
-                setSuccessMsg('이미 모든 추천 트렌드 질문이 등록되어 있습니다.');
-                return;
-            }
-
-            const { error: insertErr } = await supabase
-                .from('gatekeeper_questions')
-                .insert(toInsert);
-
-            if (insertErr) throw insertErr;
-            setSuccessMsg(`${toInsert.length}개의 최신 트렌드 밸런스 질문이 추가되었습니다!`);
-            await fetchGatekeeperQuestions();
+            setSuccessMsg(data.message);
+            await reloadAdminData();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : '알 수 없는 오류';
             setError('트렌드 질문 일괄 추가 실패: ' + msg);
@@ -499,7 +480,17 @@ export default function AdminPage() {
                     <>
                         {/* 데일리 질문 추가 폼 */}
                         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm mb-10">
-                            <h2 className="text-lg font-bold text-[var(--color-text)] mb-4">새 데일리 질문 등록</h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold text-[var(--color-text)]">새 데일리 질문 등록</h2>
+                                <button
+                                    type="button"
+                                    disabled={adding}
+                                    onClick={handleSeedDaily30Questions}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--color-primary-subtle)] text-[var(--color-primary)] hover:opacity-80 transition-opacity"
+                                >
+                                    ✨ 심층 내면 질문 30선 원클릭 확충
+                                </button>
+                            </div>
                             <form onSubmit={handleAddQuestion} className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-[var(--color-text)] mb-2">카테고리</label>
