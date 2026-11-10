@@ -75,7 +75,9 @@ async function verifyAdminAndGetClient() {
         process.env.NEXT_PUBLIC_ADMIN_EMAIL,
         'admin@resonance.com',
         'jupark1004@gmail.com',
+        'jupark1004@gamil.com',
         'jupark1004@naver.com',
+        'chb2049@naver.com',
     ].filter(Boolean);
 
     const { data: myProfile } = await dbClient

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme, THEMES } from './ThemeProvider';
 import { createClient } from '@/lib/supabase/client';
@@ -9,6 +9,14 @@ export default function ThemeSelector() {
     const router = useRouter();
     const { theme, setTheme } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUserEmail(user?.email ?? null);
+        });
+    }, []);
 
     const handleLogout = async () => {
         const supabase = createClient();
@@ -41,7 +49,17 @@ export default function ThemeSelector() {
                         onClick={() => setIsOpen(false)}
                     />
 
-                    <div className="absolute right-0 top-12 z-50 w-48 py-2 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg animate-fade-in">
+                    <div className="absolute right-0 top-12 z-50 w-56 py-2 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg animate-fade-in">
+                        {userEmail && (
+                            <div className="px-4 py-2 mb-1 border-b border-[var(--color-border)]">
+                                <p className="text-[10px] font-semibold text-[var(--color-text-light)] uppercase tracking-widest">
+                                    로그인 계정
+                                </p>
+                                <p className="text-xs font-medium text-[var(--color-text)] truncate mt-0.5">
+                                    {userEmail}
+                                </p>
+                            </div>
+                        )}
                         <p className="px-4 py-1.5 text-[10px] font-semibold text-[var(--color-text-light)] uppercase tracking-widest">
                             테마 선택
                         </p>
