@@ -19,69 +19,100 @@ export default async function Image() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #FFF5F3 0%, #FAFAFA 50%, #FFEAE5 100%)',
-                    padding: '60px',
+                    background: 'radial-gradient(circle at 50% 45%, #2A1B15 0%, #101320 55%, #07090F 100%)',
                     fontFamily: 'sans-serif',
+                    position: 'relative',
                 }}
             >
+                {/* 상단 서브 배지 */}
                 <div
                     style={{
                         display: 'flex',
-                        flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: '36px',
-                        padding: '56px 72px',
-                        border: '2px solid rgba(231, 76, 60, 0.2)',
-                        boxShadow: '0 20px 50px rgba(44, 62, 80, 0.08)',
-                        width: '1040px',
-                        height: '510px',
+                        padding: '8px 22px',
+                        borderRadius: '999px',
+                        border: '1px solid rgba(245, 176, 65, 0.35)',
+                        backgroundColor: 'rgba(245, 176, 65, 0.1)',
+                        color: '#F8C471',
+                        fontSize: '20px',
+                        fontWeight: 600,
+                        marginBottom: '26px',
+                        letterSpacing: '0.08em',
                     }}
                 >
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            backgroundColor: '#FFF0EE',
-                            color: '#E74C3C',
-                            padding: '10px 24px',
-                            borderRadius: '999px',
-                            fontSize: '22px',
-                            fontWeight: 700,
-                            marginBottom: '28px',
-                        }}
-                    >
-                        ✦ RESONANCE · 자기발견형 AI 내면 매칭
-                    </div>
+                    ✦ 스와이프 없는 자기발견형 AI 내면 공명 매칭
+                </div>
 
+                {/* 중앙 두 개의 황금빛 공명 구체 비주얼 (2번 이미지 무드) */}
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        width: '540px',
+                        height: '250px',
+                        marginBottom: '24px',
+                    }}
+                >
+                    {/* 수평 주파수 라인 */}
                     <div
                         style={{
-                            fontSize: '54px',
-                            fontWeight: 800,
-                            color: '#2C3E50',
-                            textAlign: 'center',
-                            lineHeight: 1.3,
-                            marginBottom: '20px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
+                            position: 'absolute',
+                            width: '760px',
+                            height: '2px',
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(248, 196, 113, 0.7) 50%, transparent 100%)',
                         }}
-                    >
-                        <span>나를 가장 깊이 이해한 날,</span>
-                        <span style={{ color: '#E74C3C' }}>결이 같은 사람을 만납니다</span>
-                    </div>
+                    />
 
+                    {/* 왼쪽 황금 구체 */}
                     <div
                         style={{
-                            fontSize: '26px',
-                            color: '#7F8C8D',
-                            textAlign: 'center',
-                            lineHeight: 1.5,
+                            width: '220px',
+                            height: '220px',
+                            borderRadius: '110px',
+                            background: 'radial-gradient(circle at 35% 35%, rgba(255, 243, 205, 0.95) 0%, rgba(245, 176, 65, 0.65) 50%, rgba(231, 76, 60, 0.15) 85%, transparent 100%)',
+                            border: '2px solid rgba(255, 224, 130, 0.75)',
+                            boxShadow: '0 0 60px rgba(245, 176, 65, 0.55)',
+                            marginRight: '-28px',
                         }}
-                    >
-                        단 3개의 질문으로 받아보는 나의 AI 내면 페르소나 리포트 & 공명 매칭
-                    </div>
+                    />
+
+                    {/* 오른쪽 황금 구체 */}
+                    <div
+                        style={{
+                            width: '220px',
+                            height: '220px',
+                            borderRadius: '110px',
+                            background: 'radial-gradient(circle at 65% 35%, rgba(255, 243, 205, 0.95) 0%, rgba(245, 176, 65, 0.65) 50%, rgba(231, 76, 60, 0.15) 85%, transparent 100%)',
+                            border: '2px solid rgba(255, 224, 130, 0.75)',
+                            boxShadow: '0 0 60px rgba(245, 176, 65, 0.55)',
+                            marginLeft: '-28px',
+                        }}
+                    />
+                </div>
+
+                {/* R E S O N A N C E 메인 타이틀 */}
+                <div
+                    style={{
+                        fontSize: '46px',
+                        fontWeight: 700,
+                        color: '#FDEBD0',
+                        letterSpacing: '0.36em',
+                        marginBottom: '16px',
+                    }}
+                >
+                    RESONANCE
+                </div>
+
+                <div
+                    style={{
+                        fontSize: '26px',
+                        color: '#F5CBA7',
+                        fontWeight: 500,
+                    }}
+                >
+                    나를 가장 깊이 이해한 날, 결이 같은 사람을 만납니다
                 </div>
             </div>
         ),
@@ -90,4 +121,3 @@ export default async function Image() {
         }
     );
 }
-

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ResonanceHeroVisual from "@/components/ui/ResonanceHeroVisual";
 
 export default function LandingPage() {
   return (
@@ -62,13 +63,16 @@ export default function LandingPage() {
             <span className="text-[var(--color-primary)]">결이 같은 사람</span>을 만납니다
           </h1>
 
-          <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed mb-10 max-w-lg mx-auto">
+          <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed mb-4 max-w-lg mx-auto">
             사진과 스펙을 넘기던 피로한 손끝을 멈춰보세요.
             <br />
             매일 도착하는 하나의 질문에 답하며 나를 발견하면,
             <br />
             AI가 당신의 내면 주파수와 공명하는 단 한 사람을 찾아드립니다.
           </p>
+
+          {/* 시네마틱 스플래시 인트로 & 실시간 빛의 파동 히어로 비주얼 */}
+          <ResonanceHeroVisual />
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
             <Link
